@@ -1,23 +1,30 @@
+// ... existing code ...
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5001; 
+const JWT_SECRET = 'campus-bandhu-secret-key-999';
 
+// --- MIDDLEWARE ---
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://campusbundhu:campusbundhu123@cluster0.mongodb.net/campusbundhu?retryWrites=true&w=majority';
+// --- CLOUD DATABASE CONNECTION ---
+// ... existing code ...
+const User = mongoose.model('User', UserSchema);
+const Listing = mongoose.model('Listing', ListingSchema);
+const Inquiry = mongoose.model('Inquiry', InquirySchema);
+const Contact = mongoose.model('Contact', ContactSchema);
 
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('✅ Connected to CLOUD Database (Atlas)'))
-    .catch(err => console.error('❌ Connection error:', err));
-
-const itemSchema = new mongoose.Schema({
-    type: { type: String, required: true, default: 'notes' },
+// --- ITEM SCHEMA (For Notes, Hostels, Store, Mess Sync) ---
+const ItemSchema = new mongoose.Schema({
+    type: { type: String, default: 'notes' },
     title: { type: String, required: true },
     branch: { type: String, default: 'GENERAL' },
     link: { type: String, default: '' },
@@ -27,10 +34,11 @@ const itemSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 });
 
-const Item = mongoose.model('Item', itemSchema);
+const Item = mongoose.model('Item', ItemSchema);
 
+// --- ROUTES ---
 
-// GET all items (notes, hostels, store, mess)
+// 1. ITEMS API (For live notes sync on frontend)
 app.get('/api/items', async (req, res) => {
     try {
         const items = await Item.find().sort({ date: -1 });
@@ -40,12 +48,11 @@ app.get('/api/items', async (req, res) => {
     }
 });
 
-// POST a new item/note
 app.post('/api/items', async (req, res) => {
     try {
         const newItem = new Item({
             type: req.body.type || 'notes',
-            title: req.body.title,
+            title: req.body.title || req.body.name,
             branch: req.body.branch || 'GENERAL',
             link: req.body.link || '',
             price: req.body.price || '',
@@ -53,7 +60,6 @@ app.post('/api/items', async (req, res) => {
             author: req.body.author || 'Anonymous Student',
             date: new Date()
         });
-
         const saved = await newItem.save();
         res.status(201).json({ success: true, item: saved });
     } catch (err) {
@@ -61,11 +67,20 @@ app.post('/api/items', async (req, res) => {
     }
 });
 
-// Serve frontend SPA for all other routes
+// 2. AUTHENTICATION
+// ... existing code ...
+app.get('/api/admin/contacts', async (req, res) => {
+    try {
+        const contacts = await Contact.find().sort({ timestamp: -1 });
+        res.json(contacts);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching contacts' });
+    }
+});
+
+// Serve frontend SPA index.html for all other routes
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on port ${PORT}`));

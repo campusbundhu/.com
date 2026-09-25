@@ -1,215 +1,71 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const app = express();
-const PORT = 5001; 
-const JWT_SECRET = 'campus-bandhu-secret-key-999';
+const PORT = process.env.PORT || 5001;
 
-// --- MIDDLEWARE ---
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json());
+app.use(express.static(__dirname));
 
-// --- CLOUD DATABASE CONNECTION ---
-const MONGO_URI = "mongodb+srv://campusbandhu06:campus06@cheatan.4ilrpq2.mongodb.net/?retryWrites=true&w=majority&appName=Cheatan";
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://campusbundhu:campusbundhu123@cluster0.mongodb.net/campusbundhu?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
-.then(() => console.log('✅ Connected to CLOUD Database (Atlas)'))
-.catch(err => {
-    console.error('❌ Cloud Connection Error:', err.message);
+    .then(() => console.log('✅ Connected to CLOUD Database (Atlas)'))
+    .catch(err => console.error('❌ Connection error:', err));
+
+const itemSchema = new mongoose.Schema({
+    type: { type: String, required: true, default: 'notes' },
+    title: { type: String, required: true },
+    branch: { type: String, default: 'GENERAL' },
+    link: { type: String, default: '' },
+    price: { type: String, default: '' },
+    desc: { type: String, default: '' },
+    author: { type: String, default: 'Student' },
+    date: { type: Date, default: Date.now }
 });
 
-// --- SCHEMAS ---
-const UserSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, required: true },
-    phone: { type: String, required: true },
-    aadhaar: String,
-    gender: String,
-    createdAt: { type: Date, default: Date.now }
-});
+const Item = mongoose.model('Item', itemSchema);
 
-const ListingSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    type: { type: String, required: true },
-    price: { type: Number, required: true },
-    location: { type: String, required: true },
-    address: String,
-    features: String,
-    img: String, 
-    images: [String], 
-    ownerEmail: { type: String, required: true },
-    ownerPhone: { type: String, required: true },
-    owner: String, 
-    rating: { type: Number, default: 0 },
-    verified: { type: Boolean, default: false },
-    occupancy: String, // NEW: For PGs (Single, Double, etc.)
-    academicField: String, // NEW: For Notes/Books (11th, Engineering, etc.)
-    nearestCollege: String, // NEW: Tag for nearest campus
-    coords: { lat: Number, lng: Number },
-    createdAt: { type: Date, default: Date.now }
-});
 
-const InquirySchema = new mongoose.Schema({
-    listingId: String,
-    itemName: String,
-    ownerEmail: String,
-    studentName: String,
-    timestamp: { type: Date, default: Date.now }
-});
-
-const ContactSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    message: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', UserSchema);
-const Listing = mongoose.model('Listing', ListingSchema);
-const Inquiry = mongoose.model('Inquiry', InquirySchema);
-const Contact = mongoose.model('Contact', ContactSchema);
-
-// --- ROUTES ---
-
-// HEALTH CHECK 
-app.get('/', (req, res) => {
-    res.send('✅ CampusBandhu Server is running successfully on Port 5001!');
-});
-
-// 1. AUTHENTICATION
-app.post('/api/auth/signup', async (req, res) => {
+// GET all items (notes, hostels, store, mess)
+app.get('/api/items', async (req, res) => {
     try {
-        const { name, email, password, role, phone, aadhaar, gender } = req.body;
-        
-        const existingUser = await User.findOne({ email });
-        if (existingUser) return res.status(400).json({ message: 'User already exists' });
+        const items = await Item.find().sort({ date: -1 });
+        res.json({ success: true, count: items.length, items });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const newUser = new User({
-            name, email, password: hashedPassword, role, phone, aadhaar, gender
+// POST a new item/note
+app.post('/api/items', async (req, res) => {
+    try {
+        const newItem = new Item({
+            type: req.body.type || 'notes',
+            title: req.body.title,
+            branch: req.body.branch || 'GENERAL',
+            link: req.body.link || '',
+            price: req.body.price || '',
+            desc: req.body.desc || '',
+            author: req.body.author || 'Anonymous Student',
+            date: new Date()
         });
-        await newUser.save();
 
-        res.status(201).json({ 
-            message: 'User created',
-            user: { name, email, role, phone } 
-        });
+        const saved = await newItem.save();
+        res.status(201).json({ success: true, item: saved });
     } catch (err) {
-        res.status(500).json({ message: 'Server Error: ' + err.message });
+        res.status(400).json({ success: false, error: err.message });
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
-        
-        if (!user) return res.status(400).json({ message: 'User not found' });
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
-
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
-
-        res.json({
-            token,
-            user: {
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                phone: user.phone
-            }
-        });
-    } catch (err) {
-        res.status(500).json({ message: 'Server Error' });
-    }
+// Serve frontend SPA for all other routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 2. LISTINGS
-app.get('/api/listings', async (req, res) => {
-    try {
-        const listings = await Listing.find().sort({ createdAt: -1 });
-        const formatted = listings.map(l => ({ ...l._doc, id: l._id }));
-        res.json(formatted);
-    } catch (err) {
-        res.status(500).json({ message: 'Error fetching listings' });
-    }
+app.listen(PORT, () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
-
-app.post('/api/listings', async (req, res) => {
-    try {
-        const newListing = new Listing(req.body);
-        const saved = await newListing.save();
-        res.status(201).json({ ...saved._doc, id: saved._id });
-    } catch (err) {
-        res.status(500).json({ message: 'Error creating listing' });
-    }
-});
-
-app.delete('/api/listings/:id', async (req, res) => {
-    try {
-        await Listing.findByIdAndDelete(req.params.id);
-        res.json({ message: 'Deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ message: 'Delete failed' });
-    }
-});
-
-// 3. INQUIRIES
-app.post('/api/inquiries', async (req, res) => {
-    try {
-        const newInquiry = new Inquiry(req.body);
-        await newInquiry.save();
-        res.status(201).json(newInquiry);
-    } catch (err) {
-        res.status(500).json({ message: 'Error saving inquiry' });
-    }
-});
-
-app.get('/api/inquiries/:email', async (req, res) => {
-    try {
-        const inquiries = await Inquiry.find({ ownerEmail: req.params.email }).sort({ timestamp: -1 });
-        res.json(inquiries);
-    } catch (err) {
-        res.status(500).json({ message: 'Error fetching inquiries' });
-    }
-});
-
-// 4. ADMIN
-app.get('/api/admin/inquiries', async (req, res) => {
-    try {
-        const inquiries = await Inquiry.find().sort({ timestamp: -1 });
-        res.json(inquiries);
-    } catch (err) {
-        res.status(500).json({ message: 'Error fetching all inquiries' });
-    }
-});
-
-app.post('/api/contact', async (req, res) => {
-    try {
-        const newContact = new Contact(req.body);
-        await newContact.save();
-        res.status(201).json(newContact);
-    } catch (err) {
-        res.status(500).json({ message: 'Error saving contact message' });
-    }
-});
-
-app.get('/api/admin/contacts', async (req, res) => {
-    try {
-        const contacts = await Contact.find().sort({ timestamp: -1 });
-        res.json(contacts);
-    } catch (err) {
-        res.status(500).json({ message: 'Error fetching contacts' });
-    }
-});
-
-app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));

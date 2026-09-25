@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CampusBandhu - Your Campus Life, Simplified.</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#003399',
+                        primaryLight: '#2563eb',
+                        secondary: '#FF8E00',
+                        dark: '#0f172a',
+                        darkCard: '#1e293b'
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        heading: ['Quicksand', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: 'Nunito', sans-serif; }
+        h1, h2, h3, h4, h5, h6, .logo-text { font-family: 'Quicksand', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hero-bg { background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 50%, #fff7ed 100%); }
+        .dark .hero-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #312e81 100%); }
+        
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #003399;
+            width: 24px;
+            height: 24px;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Smooth bounce for social icons */
+        .social-bounce:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 dark:bg-dark dark:text-slate-200 transition-colors duration-300">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="min-h-screen flex flex-col relative">
+
+        <!-- Toast Notification -->
+        <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 z-[80] hidden px-6 py-3 rounded-full shadow-2xl flex items-center space-x-3 transition-all duration-300 bg-slate-900 text-white">
+            <div id="toast-icon" class="bg-green-500 rounded-full p-1"><i data-lucide="check" class="w-3 h-3"></i></div>
+            <span id="toast-text" class="text-sm font-medium">Notification</span>
+        </div>
+
+        <!-- Admin Password Modal -->
+        <div id="admin-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
+            <div class="bg-white dark:bg-darkCard p-8 rounded-3xl shadow-2xl max-w-sm w-full transform scale-95 transition-all">
+                <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 text-center">Admin Access</h3>
+                <p class="text-slate-500 text-sm mb-6 text-center">Enter the secret password to continue.</p>
+                <input type="password" id="admin-password" placeholder="Password" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 outline-none focus:border-primary dark:text-white mb-4 text-center tracking-widest">
+                <div class="flex gap-3">
+                    <button onclick="UIService.closeAdminModal()" class="w-1/2 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition">Cancel</button>
+                    <button onclick="UIService.verifyAdmin()" class="w-1/2 bg-primary hover:bg-primaryLight text-white py-3 rounded-xl font-bold shadow-lg transition">Enter</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAVBAR -->
+        <header class="fixed w-full top-0 z-50 bg-white/90 dark:bg-darkCard/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-2 cursor-pointer" onclick="Router.navigate('home')">
+                    <div class="w-12 h-13 flex items-center justify-center bg-gradient-to-br" onclick="UIService.handleLogoClick(event)">
+                        <!-- Logo -->
+                        <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl select-none">CB</div>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-primary dark:text-white leading-none logo-text">Campus<span class="text-secondary">Bandhu</span></h1>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wider uppercase">Student Partner</p>
+                    </div>
+                </div>
+
+                <div class="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 rounded-full px-4 py-2 w-1/3 border border-transparent focus-within:border-primary transition-all">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-secondary mr-2"></i>
+                    <select id="nav-location" onchange="LocationService.handleLocationChange(event)" class="bg-transparent text-sm font-bold outline-none w-32 cursor-pointer border-r border-slate-300 mr-3 dark:text-white dark:border-slate-600">
+                        <option value="auto">📍 Near Me</option>
+                        <optgroup label="Top Colleges">
+                            <option value="GCOEJ">GCOE Jalgaon</option>
+                            <option value="MJ College">MJ College</option>
+                            <option value="SSBT">SSBT Bambhori</option>
+                            <option value="Raisoni">GH Raisoni</option>
+                            <option value="KCES">KCES's CoEM</option>
+                            <option value="IMR">IMR College</option>
+                        </optgroup>
+                        <optgroup label="Areas">
+                            <option value="Jalgaon">Jalgaon City</option>
+                            <option value="Mehrun">Mehrun</option>
+                            <option value="Ramanand Nagar">Ramanand Ngr</option>
+                        </optgroup>
+                    </select>
+                    <input type="text" id="nav-search" placeholder="Search PGs, Notes..." class="bg-transparent w-full text-sm outline-none dark:text-white" onkeyup="SearchService.handleSearch(event)">
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <button onclick="Router.navigate('home')" class="hidden md:flex items-center gap-1 text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-primary transition">
+                        <i data-lucide="home" class="w-4 h-4"></i> Home
+                    </button>
+
+                    <button onclick="UIService.toggleDarkMode()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full">
+                        <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
+                        <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-yellow-400"></i>
+                    </button>
+
+                    <div id="nav-guest" class="flex gap-2">
+                        <button onclick="Router.navigate('login')" class="hidden md:block px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-primary">Log In</button>
+                        <button onclick="Router.navigate('signup')" class="px-5 py-2 text-sm font-bold bg-primary text-white rounded-full shadow-lg hover:bg-blue-700 transition">Sign Up</button>
+                    </div>
+
+                    <div id="nav-user" class="hidden flex items-center gap-3 relative">
+                        <button onclick="Router.navigate('sell')" id="nav-action-btn" class="hidden md:flex items-center gap-1 px-4 py-2 bg-orange-50 dark:bg-slate-800 text-secondary text-sm font-bold rounded-full hover:bg-orange-100 border border-orange-200">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i> <span id="nav-action-text">Sell</span>
+                        </button>
+                        <div class="text-right hidden md:block cursor-pointer" onclick="UIService.toggleUserMenu()">
+                            <p id="user-name-display" class="text-sm font-bold text-slate-800 dark:text-white leading-tight"></p>
+                            <p id="user-role-display" class="text-[10px] text-slate-500 uppercase font-bold"></p>
+                        </div>
+                        <div id="user-dropdown" class="absolute top-12 right-0 w-48 bg-white dark:bg-darkCard shadow-xl rounded-xl border border-slate-100 dark:border-slate-700 hidden flex-col overflow-hidden z-50">
+                             <button onclick="Router.navigate('dashboard')" class="px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-sm flex items-center gap-2 font-bold"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</button>
+                             <button onclick="AuthService.logout()" class="px-4 py-3 text-left hover:bg-red-50 text-red-500 text-sm flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 font-bold"><i data-lucide="log-out" class="w-4 h-4"></i> Logout</button>
+                        </div>
+                    </div>
+
+                    <button id="mobile-menu-btn" class="md:hidden p-2 text-slate-700 dark:text-white" onclick="UIService.toggleMobileMenu()">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="md:hidden hidden bg-white dark:bg-darkCard border-t border-slate-200 dark:border-slate-700 absolute w-full shadow-lg z-40">
+                <div class="p-4 flex flex-col gap-4">
+                      <input type="text" placeholder="Search..." class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 outline-none" onkeyup="SearchService.handleSearch(event)">
+                      <button onclick="Router.navigate('home')" class="text-left p-2 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg">Home</button>
+                      <button onclick="Router.navigate('listings', 'pgs')" class="text-left p-2 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg">Find PG</button>
+                      <button onclick="Router.navigate('listings', 'notes')" class="text-left p-2 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg">Notes</button>
+                      <button onclick="Router.navigate('sell')" id="mobile-action-btn" class="text-left p-2 font-bold text-secondary hover:bg-orange-50 dark:hover:bg-slate-800 rounded-lg">Sell Item</button>
+                      <button onclick="Router.navigate('about')" class="text-left p-2 font-bold text-slate-600 dark:text-slate-400 text-sm">About Us</button>
+                      <button onclick="Router.navigate('contact')" class="text-left p-2 font-bold text-slate-600 dark:text-slate-400 text-sm">Contact Us</button>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content" class="pt-20 flex-grow">
+            
+            <!-- 1. HOME PAGE -->
+            <div id="view-home" class="page-view">
+                <section class="hero-bg py-20 px-4 text-center">
+                    <div class="max-w-4xl mx-auto">
+                        <span class="inline-block py-1 px-3 rounded-full bg-white/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-primary mb-6 shadow-sm">
+                            🚀 Live in Jalgaon
+                        </span>
+                        <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white mb-4 leading-tight logo-text">
+                            CampusBandhu &mdash; <br>
+                            <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Padhai Se Rehne Tak, Sab Saath.</span>
+                        </h1>
+                        <p class="text-lg text-slate-600 dark:text-slate-300 mb-8 max-w-2xl mx-auto font-medium">
+                            The ultimate platform for students. Buy/Sell books, find Verified PGs, and locate the best Mess near your college.
+                        </p>
+                        <div class="flex justify-center gap-4">
+                            <button onclick="Router.navigate('listings', 'pgs')" class="px-8 py-4 bg-primary text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition transform flex items-center gap-2">
+                                <i data-lucide="home" class="w-5 h-5"></i> Find PG
+                            </button>
+                            <button onclick="Router.navigate('listings', 'notes')" class="px-8 py-4 bg-white dark:bg-darkCard text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl font-bold shadow-sm hover:scale-105 transition transform flex items-center gap-2">
+                                <i data-lucide="book" class="w-5 h-5"></i> Notes
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="py-16 px-4 container mx-auto">
+                    <h2 class="text-2xl font-bold mb-8 dark:text-white">Explore Categories</h2>
+                    <div id="features-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"></div>
+                </section>
+            </div>
+
+            <!-- 2. LISTINGS PAGE -->
+            <div id="view-listings" class="page-view hidden container mx-auto px-4 py-8">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h2 id="listing-header" class="text-2xl font-bold dark:text-white">All Listings</h2>
+                    <div id="filter-buttons-container" class="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto hide-scrollbar">
+                        <button id="btn-filter-all" onclick="RenderService.filterListings('all')" class="filter-btn px-4 py-2 rounded-full bg-primary text-white text-sm font-bold whitespace-nowrap shadow-md transition-all flex items-center gap-1.5">
+                            <i data-lucide="layout-grid" class="w-4 h-4"></i> All
+                        </button>
+                        <button id="btn-filter-pgs" onclick="RenderService.filterListings('pgs')" class="filter-btn px-4 py-2 rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 whitespace-nowrap font-bold">
+                            <i data-lucide="home" class="w-4 h-4 text-blue-500"></i> PGs
+                        </button>
+                        <button id="btn-filter-mess" onclick="RenderService.filterListings('mess')" class="filter-btn px-4 py-2 rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 whitespace-nowrap font-bold">
+                            <i data-lucide="utensils" class="w-4 h-4 text-green-500"></i> Mess
+                        </button>
+                        <button id="btn-filter-books" onclick="RenderService.filterListings('books')" class="filter-btn px-4 py-2 rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 whitespace-nowrap font-bold">
+                            <i data-lucide="book" class="w-4 h-4 text-orange-500"></i> Books
+                        </button>
+                        <button id="btn-filter-notes" onclick="RenderService.filterListings('notes')" class="filter-btn px-4 py-2 rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 whitespace-nowrap font-bold">
+                            <i data-lucide="file-text" class="w-4 h-4 text-purple-500"></i> Notes
+                        </button>
+                        <button id="btn-filter-gadget" onclick="RenderService.filterListings('gadget')" class="filter-btn px-4 py-2 rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 whitespace-nowrap font-bold">
+                            <i data-lucide="smartphone" class="w-4 h-4 text-zinc-500"></i> Gadgets
+                        </button>
+                        <button id="btn-filter-nearby" onclick="RenderService.filterListings('nearby')" class="filter-btn px-4 py-2 rounded-full border border-green-500 text-green-600 text-sm font-bold whitespace-nowrap hover:bg-green-50 dark:hover:bg-green-900/20 transition-all flex items-center gap-1.5">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i> Near Me
+                        </button>
+                    </div>
+                </div>
+                <div id="listings-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                <div id="loading-indicator" class="hidden w-full flex justify-center py-10"><div class="loader"></div></div>
+            </div>
+
+            <!-- 3. LOGIN PAGE -->
+            <div id="view-login" class="page-view hidden flex items-center justify-center min-h-[80vh] px-4">
+                <div class="w-full max-w-md bg-white dark:bg-darkCard p-8 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
+                    <h2 class="text-2xl font-bold text-center mb-2 dark:text-white">Welcome Back</h2>
+                    <p class="text-center text-slate-500 text-sm mb-8 font-medium">Students & Partners Portal</p>
+                    <div id="login-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm font-bold"></div>
+                    <form onsubmit="AuthService.login(event)" class="space-y-4">
+                        <input type="email" id="login-email" placeholder="Email" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none focus:border-primary font-medium" required>
+                        <input type="password" id="login-pass" placeholder="Password" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none focus:border-primary font-medium" required>
+                        <button type="submit" class="w-full bg-primary hover:bg-primaryLight text-white font-bold py-3 rounded-xl shadow-lg transition-all">Log In</button>
+                    </form>
+                    <div class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400 font-bold">
+                        No account? <button onclick="Router.navigate('signup')" class="text-primary font-bold hover:underline">Sign Up</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. SIGNUP PAGE -->
+            <div id="view-signup" class="page-view hidden flex items-center justify-center min-h-[80vh] px-4">
+                <div class="w-full max-w-md bg-white dark:bg-darkCard p-8 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
+                    <h2 class="text-2xl font-bold text-center mb-6 dark:text-white">Create Account</h2>
+                    <div id="signup-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm font-bold"></div>
+                    <form onsubmit="AuthService.signup(event)" class="space-y-4">
+                        <input type="text" id="signup-name" placeholder="Full Name" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-medium" required>
+                        <select id="signup-role" onchange="AuthService.toggleFields()" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none cursor-pointer font-medium">
+                            <option value="student">Student</option>
+                            <option value="pg_owner">PG Owner</option>
+                            <option value="mess_owner">Mess Owner</option>
+                            <option value="seller">Seller (Books/Gadgets)</option>
+                            <option value="library_owner">Library Owner</option>
+                            <option value="class_owner">Coaching/Class Owner</option>
+                        </select>
+                        <div id="field-gender">
+                            <select id="signup-gender" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none cursor-pointer font-medium">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div id="field-aadhaar" class="hidden">
+                            <input type="text" id="signup-aadhaar" placeholder="Aadhaar Card Number (Required for Owners)" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-medium">
+                        </div>
+                        <input type="tel" id="signup-phone" placeholder="Phone Number" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-medium" required>
+                        <input type="email" id="signup-email" placeholder="Email Address" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-medium" required>
+                        <input type="password" id="signup-pass" placeholder="Create Password" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-medium" required>
+                        <button type="submit" class="w-full bg-secondary hover:bg-orange-600 text-white font-bold py-3 rounded-xl shadow-lg transition">Sign Up</button>
+                    </form>
+                    <div class="mt-6 text-center text-sm text-slate-600 dark:text-slate-400 font-bold">
+                        Have an account? <button onclick="Router.navigate('login')" class="text-primary font-bold hover:underline">Log In</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. SELL/LIST ITEM PAGE -->
+            <div id="view-sell" class="page-view hidden container mx-auto px-4 py-10 max-w-lg">
+                <div class="bg-white dark:bg-darkCard p-8 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
+                    <h2 id="sell-header" class="text-2xl font-bold mb-6 dark:text-white">List Item</h2>
+                    <form onsubmit="DataService.handleSell(event)" class="space-y-4">
+                        <input type="text" id="sell-title" placeholder="Title (e.g. Stanza Living / Maths Notes)" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-bold" required>
+                        
+                        <textarea id="sell-address" placeholder="Full Address (e.g. Plot No, Colony, Landmark)" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none resize-none font-medium" rows="2" required></textarea>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <select id="sell-cat" onchange="UIService.handleSellCategoryChange()" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-bold">
+                                <!-- Populated dynamically based on role -->
+                            </select>
+                            <input type="number" id="sell-price" placeholder="Price (₹)" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-bold" required>
+                        </div>
+
+                        <!-- NEW: Conditional Extra Fields -->
+                        <div id="extra-fields-container" class="space-y-4">
+                            <!-- Nearest College (Visible to all) -->
+                            <select id="sell-nearest-college" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-bold">
+                                <option value="">Select Nearest College (Optional)</option>
+                                <option value="GCOE Jalgaon">GCOE Jalgaon</option>
+                                <option value="MJ College">MJ College</option>
+                                <option value="SSBT Bambhori">SSBT Bambhori</option>
+                                <option value="GH Raisoni">GH Raisoni</option>
+                                <option value="KCES's CoEM">KCES's CoEM</option>
+                                <option value="IMR College">IMR College</option>
+                            </select>
+
+                            <!-- PG Occupancy (Hidden by default) -->
+                            <select id="sell-occupancy" class="hidden w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-bold">
+                                <option value="">Select Room Type (Optional)</option>
+                                <option value="Single Room">Single Room (1 Person)</option>
+                                <option value="Double Sharing">Double Sharing (2 People)</option>
+                                <option value="Triple Sharing">Triple Sharing (3 People)</option>
+                                <option value="4+ Sharing">4+ Sharing</option>
+                            </select>
+
+                            <!-- Academic Field (Hidden by default) -->
+                            <select id="sell-academic-field" class="hidden w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 outline-none font-bold">
+                                <option value="">Select Field/Standard (Optional)</option>
+                                <option value="11th/12th Science">11th/12th Science</option>
+                                <option value="11th/12th Commerce">11th/12th Commerce</option>
+                                <option value="11th/12th Arts">11th/12th Arts</option>
+                                <option value="Engineering">Engineering</option>
+                                <option value="Pharmacy">Pharmacy</option>
+                                <option value="Medical">Medical</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition relative">
+                            <input type="file" id="sell-image" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" multiple onchange="DataService.previewImage(event)" accept="image/*">
+                            <i data-lucide="image-plus" class="w-8 h-8 text-slate-400 mx-auto mb-2"></i>
+                            <div id="upload-placeholder">
+                                <p class="text-sm font-bold text-slate-500">Click to upload photo(s)</p>
+                                <p id="upload-limit-text" class="text-xs font-medium text-slate-400 mt-1"></p>
+                            </div>
+                            <div id="sell-img-previews" class="hidden mt-2 grid grid-cols-3 gap-2 z-10 relative pointer-events-none"></div>
+                        </div>
+
+                        <button type="submit" id="sell-submit-btn" class="w-full bg-primary text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:opacity-50">Post Listing</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 6. ITEM DETAILS -->
+            <div id="view-details" class="page-view hidden container mx-auto px-4 py-8 max-w-3xl">
+                <button onclick="Router.navigate('listings', 'all')" class="mb-4 flex items-center font-bold text-slate-500 hover:text-primary"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Listings</button>
+                
+                <div class="bg-white dark:bg-darkCard rounded-3xl overflow-hidden shadow-xl border border-slate-100 dark:border-slate-700">
+                    <div class="space-y-4 p-1 bg-slate-50 dark:bg-slate-900/50">
+                        <div class="rounded-3xl overflow-hidden h-64 md:h-80 relative">
+                            <img id="detail-img" src="" class="w-full h-full object-cover">
+                        </div>
+                        <div id="detail-gallery" class="flex gap-2 overflow-x-auto px-4 pb-2 hide-scrollbar hidden"></div>
+                    </div>
+
+                    <div class="p-6 md:p-8">
+                        <div class="flex flex-col md:flex-row justify-between items-start mb-4">
+                            <div>
+                                <h1 id="detail-title" class="text-3xl font-bold text-slate-900 dark:text-white"></h1>
+                                <p id="detail-loc" class="text-slate-500 font-medium flex items-center mt-1"><i data-lucide="map-pin" class="w-4 h-4 mr-1"></i> Location</p>
+                                
+                                <!-- Dynamic Badges (Type, Occupancy, Field) -->
+                                <div id="detail-badges" class="flex flex-wrap gap-2 mt-3"></div>
+
+                            </div>
+                            <p id="detail-price" class="text-2xl font-extrabold text-primary mt-2"></p>
+                        </div>
+
+                        <div class="mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                             <h4 class="text-xs font-bold text-slate-400 uppercase mb-1">Full Address</h4>
+                             <p id="detail-address" class="text-slate-700 dark:text-slate-300 text-sm font-medium leading-relaxed"></p>
+                        </div>
+
+                        <hr class="border-slate-100 dark:border-slate-700 my-6">
+                        
+                        <div class="bg-blue-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-blue-100 dark:border-slate-700 text-center">
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium">Listed by <span id="detail-owner" class="font-bold text-slate-800 dark:text-white"></span></p>
+                            <div id="contact-box"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. DASHBOARD -->
+            <div id="view-dashboard" class="page-view hidden container mx-auto px-4 py-10">
+                <div class="flex justify-between items-end mb-8">
+                    <div>
+                        <h1 class="text-3xl font-bold text-primary dark:text-white">My Dashboard</h1>
+                        <p class="text-slate-500 mt-2 font-medium">Manage your listings and responses</p>
+                    </div>
+                    <button onclick="AuthService.logout()" class="text-red-500 font-bold text-sm hover:bg-red-50 px-4 py-2 rounded-lg transition">Sign Out</button>
+                </div>
+                
+                <div class="flex gap-4 border-b border-slate-200 dark:border-slate-700 mb-8 overflow-x-auto">
+                    <button onclick="UIService.switchTab('my-listings')" id="tab-my-listings" class="px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm whitespace-nowrap">Active Listings</button>
+                    <button onclick="UIService.switchTab('inquiries')" id="tab-inquiries" class="px-6 py-3 border-b-2 border-transparent text-slate-500 font-bold text-sm hover:text-primary transition whitespace-nowrap">Inquiries/Saved</button>
+                    <button id="dash-add-btn" onclick="Router.navigate('sell')" class="ml-auto bg-secondary text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm md:hidden">Add New</button>
+                </div>
+
+                <div id="dashboard-content" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+            </div>
+
+            <!-- 8. ABOUT PAGE -->
+            <div id="view-about" class="page-view hidden container mx-auto px-4 py-12 max-w-3xl">
+                <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-6">About Us</h1>
+                <div class="bg-white dark:bg-darkCard p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 prose dark:prose-invert text-slate-600 dark:text-slate-300 font-medium">
+                    <p class="mb-4">CampusBandhu is a student-first platform designed to simplify college life in Jalgaon. We understand the struggles of finding a good PG, getting affordable notes, or finding the right mess.</p>
+                    <p class="mb-4">Our mission is to connect students with verified services in their locality, ensuring a hassle-free campus experience.</p>
+                    <h3 class="text-xl font-bold text-slate-800 dark:text-white mt-8 mb-2">Our Vision</h3>
+                    <p class="mb-6">To create a zero-brokerage, student-run ecosystem that empowers every student in Jalgaon to find the resources they need instantly.</p>
+                    
+                    <h3 class="text-xl font-bold text-slate-800 dark:text-white mt-8 mb-2">Get in Touch</h3>
+                    <p>We'd love to hear from you! For queries, feedback, or partnerships, email us at <a href="mailto:campusbandhu@gmail.com" class="text-primary font-bold hover:underline">campusbandhu@gmail.com</a>.</p>
+                </div>
+            </div>
+
+            <!-- 9. PRIVACY PAGE -->
+            <div id="view-privacy" class="page-view hidden container mx-auto px-4 py-12 max-w-3xl">
+                <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-6">Privacy Policy</h1>
+                <div class="bg-white dark:bg-darkCard p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 prose dark:prose-invert text-slate-600 dark:text-slate-300 font-medium">
+                    <p class="mb-4">At CampusBandhu, we take your privacy seriously.</p>
+                    <h3 class="text-xl font-bold text-slate-800 dark:text-white mt-6 mb-2">1. Data Collection</h3>
+                    <p class="mb-4">We collect basic information like name, email, and location.</p>
+                    <h3 class="text-xl font-bold text-slate-800 dark:text-white mt-6 mb-2">2. Usage</h3>
+                    <p>Data is used to connect you with owners/sellers. We do not sell data.</p>
+                    <h3 class="text-xl font-bold text-slate-800 dark:text-white mt-6 mb-2">3. Contact</h3>
+                    <p>Phone numbers are shared only when you post a listing.</p>
+                </div>
+            </div>
+
+            <!-- 10. CONTACT PAGE -->
+            <div id="view-contact" class="page-view hidden container mx-auto px-4 py-12 max-w-2xl">
+                <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-8 text-center">Contact Us</h1>
+                <div class="bg-white dark:bg-darkCard p-8 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
+                    <form onsubmit="BackendService.submitContact(event)" class="space-y-4">
+                        <input type="text" id="contact-name" placeholder="Name" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 outline-none dark:text-white font-bold" required>
+                        <input type="email" id="contact-email" placeholder="Email" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 outline-none dark:text-white font-bold" required>
+                        <textarea id="contact-message" placeholder="Message" rows="4" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 outline-none dark:text-white font-medium" required></textarea>
+                        <button type="submit" id="contact-submit" class="w-full bg-primary hover:bg-primaryLight text-white py-3 rounded-xl font-bold shadow-lg transition">Send Message</button>
+                    </form>
+                    <div class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700 text-center">
+                        <p class="text-slate-500 font-bold text-sm mb-2">Email: support@campusbandhu.com</p>
+                        <p class="text-slate-500 font-bold text-sm">Phone: +91 98765 43210</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 11. SECRET ADMIN PAGE -->
+            <div id="view-admin" class="page-view hidden container mx-auto px-4 py-10 max-w-6xl">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-bold text-red-500">Super Admin Dashboard</h1>
+                    <button onclick="RenderService.adminDashboard()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-slate-700 flex items-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh Data</button>
+                </div>
+                
+                <!-- Inquiries Section -->
+                <div class="bg-white dark:bg-darkCard p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 mb-8">
+                    <h2 class="text-xl font-bold mb-4 dark:text-white flex items-center gap-2"><i data-lucide="activity" class="text-primary"></i> Live User Inquiries</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-bold uppercase tracking-wider">
+                                    <th class="p-4 rounded-tl-lg">Date</th>
+                                    <th class="p-4">Student</th>
+                                    <th class="p-4">Inquired About</th>
+                                    <th class="p-4 rounded-tr-lg">Owner Email</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-inquiries-body" class="divide-y divide-slate-100 dark:divide-slate-700 dark:text-slate-300 font-medium">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Contact Messages Section -->
+                <div class="bg-white dark:bg-darkCard p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700">
+                    <h2 class="text-xl font-bold mb-4 dark:text-white flex items-center gap-2"><i data-lucide="mail" class="text-secondary"></i> Contact Us Messages</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-bold uppercase tracking-wider">
+                                    <th class="p-4 rounded-tl-lg">Date</th>
+                                    <th class="p-4">Name</th>
+                                    <th class="p-4">Email</th>
+                                    <th class="p-4 rounded-tr-lg">Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-contacts-body" class="divide-y divide-slate-100 dark:divide-slate-700 dark:text-slate-300 font-medium">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="bg-white dark:bg-darkCard border-t border-slate-200 dark:border-slate-700 py-8 mt-auto">
+            <div class="container mx-auto px-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                    <div class="col-span-1 md:col-span-2">
+                        <span class="text-xl font-bold text-slate-900 dark:text-white block mb-2 logo-text">Campus<span class="text-secondary">Bandhu</span></span>
+                        <p class="max-w-xs text-sm text-slate-500 dark:text-slate-400 font-bold">Your Campus Life, Simplified.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 dark:text-white mb-4">Quick Links</h4>
+                        <ul class="space-y-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+                            <li><button onclick="Router.navigate('home')" class="hover:text-primary transition">Home</button></li>
+                            <li><button onclick="Router.navigate('about')" class="hover:text-primary transition">About Us</button></li>
+                            <li><button onclick="Router.navigate('privacy')" class="hover:text-primary transition">Privacy Policy</button></li>
+                            <li><button onclick="Router.navigate('contact')" class="hover:text-primary transition">Contact Us</button></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 dark:text-white mb-4">Connect</h4>
+                        <div class="flex gap-4">
+                            <!-- Instant Loading Inline SVGs -->
+                            <a href="#" class="social-bounce w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+                            </a>
+                            <a href="#" class="social-bounce w-10 h-10 rounded-full bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-white flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>
+                            </a>
+                            <a href="#" class="social-bounce w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t border-slate-200 dark:border-slate-700 pt-8 text-center text-sm font-bold text-slate-400">&copy; 2026 CampusBandhu.</div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // --- API CONFIGURATION ---
+        const API_URL = 'http://localhost:5001/api';
+
+        // --- CONSTANTS ---
+        const JALGAON_DATA = {
+            colleges: [
+                { name: "GCOEJ", lat: 21.0112, lng: 75.5645 },
+                { name: "MJ College", lat: 21.0050, lng: 75.5700 },
+                { name: "SSBT", lat: 21.0400, lng: 75.5000 },
+                { name: "Raisoni", lat: 20.9850, lng: 75.5550 },
+                { name: "KCES", lat: 21.0080, lng: 75.5660 }, // Added KCES
+                { name: "IMR", lat: 21.0065, lng: 75.5680 }  // Added IMR
+            ],
+            areas: [
+                { name: "Jalgaon", lat: 21.0077, lng: 75.5626 },
+                { name: "Mehrun", lat: 20.9926, lng: 75.5478 },
+                { name: "Ramanand Nagar", lat: 21.0100, lng: 75.5600 },
+                { name: "Pimprala", lat: 20.9950, lng: 75.5200 },
+                { name: "Deepnagar", lat: 21.0500, lng: 75.8000 }, 
+                { name: "Shree Nagar", lat: 21.0120, lng: 75.5650 },
+                { name: "Pratap Nagar", lat: 21.0000, lng: 75.5500 },
+                { name: "Akashwani Chowk", lat: 21.0150, lng: 75.5700 },
+                { name: "MIDC Area", lat: 20.9800, lng: 75.5900 },
+                { name: "Mahabal", lat: 21.0200, lng: 75.5500 },
+                { name: "Shiv Colony", lat: 21.0180, lng: 75.5400 }
+            ]
+        };
+
+        const CATEGORIES = [
+            { id: 'pgs', title: 'PGs', icon: 'home', color: 'bg-blue-100 text-blue-600' },
+            { id: 'mess', title: 'Mess', icon: 'utensils', color: 'bg-green-100 text-green-600' },
+            { id: 'notes', title: 'Notes', icon: 'file-text', color: 'bg-purple-100 text-purple-600' },
+            { id: 'books', title: 'Books', icon: 'book', color: 'bg-orange-100 text-orange-600' },
+            { id: 'gadget', title: 'Gadgets', icon: 'smartphone', color: 'bg-zinc-100 text-zinc-600' },
+            { id: 'library', title: 'Library', icon: 'library', color: 'bg-cyan-100 text-cyan-600' },
+            { id: 'class', title: 'Coaching', icon: 'presentation', color: 'bg-pink-100 text-pink-600' }
+        ];
+
+        const ROLE_OPTIONS = {
+            'student': [{val: 'notes', label: 'Notes'}, {val: 'book', label: 'Book'}, {val: 'gadget', label: 'Gadget'}, {val: 'other', label: 'Other'}],
+            'seller': [{val: 'notes', label: 'Notes'}, {val: 'book', label: 'Book'}, {val: 'gadget', label: 'Gadget'}, {val: 'other', label: 'Other'}],
+            'pg_owner': [{val: 'pgs', label: 'PG / Hostel'}],
+            'mess_owner': [{val: 'mess', label: 'Mess Service'}],
+            'library_owner': [{val: 'library', label: 'Library'}],
+            'class_owner': [{val: 'class', label: 'Coaching Class'}]
+        };
+
+        // --- STATE ---
+        const AppState = {
+            user: JSON.parse(localStorage.getItem('campusUser')),
+            listings: [],
+            userLocation: null,
+            referenceLocation: null,
+            currentDetailItem: null,
+            tempImages: [],
+            isOfflineMode: false,
+            logoClickCount: 0,
+            logoClickTimer: null
+        };
+
+        // --- BACKEND SERVICE ---
+        const BackendService = {
+            init: async () => {
+                try {
+                    const res = await fetch(`${API_URL}/listings`);
+                    if(res.ok) {
+                        const data = await res.json();
+                        AppState.listings = data; 
+                        AppState.isOfflineMode = false;
+                        localStorage.setItem('campusBackupListings', JSON.stringify(data)); // Save backup
+                    } else { throw new Error("Fetch failed"); }
+                } catch(e) {
+                    console.warn("Backend offline. Engaging Offline Preview Mode.");
+                    AppState.isOfflineMode = true;
+                    // Load from backup or use mock data
+                    const backup = localStorage.getItem('campusBackupListings');
+                    if (backup) {
+                        AppState.listings = JSON.parse(backup);
+                    } else {
+                        // Generate mock data so the UI doesn't look empty
+                        AppState.listings = [
+                            { id: 'm1', name: 'GCOE Math Notes', type: 'notes', price: 150, location: 'Jalgaon', owner: 'Rahul', rating: 4.8, academicField: 'Engineering', coords: {lat: 21.0112, lng: 75.5645}, img: 'https://placehold.co/600x400/purple/FFF?text=Math+Notes' },
+                            { id: 'm2', name: 'Shivkrupa PG', type: 'pgs', price: 2500, location: 'Shiv Colony', address: 'Plot 42, Shiv Colony, Jalgaon', owner: 'Rajesh', rating: 4.5, occupancy: 'Double Sharing', nearestCollege: "MJ College", coords: {lat: 21.0180, lng: 75.5400}, img: 'https://placehold.co/600x400/blue/FFF?text=PG+Room' },
+                            { id: 'm3', name: 'Annapurna Mess', type: 'mess', price: 1800, location: 'Ramanand Nagar', owner: 'Sunita', rating: 4.9, coords: {lat: 21.0100, lng: 75.5600}, img: 'https://placehold.co/600x400/green/FFF?text=Thali' }
+                        ];
+                    }
+                }
+                RenderService.refresh();
+            },
+
+            addListing: async (item) => {
+                if (AppState.isOfflineMode) {
+                    // Save to local storage mock array
+                    item.id = 'mock_' + Date.now();
+                    AppState.listings.unshift(item);
+                    localStorage.setItem('campusBackupListings', JSON.stringify(AppState.listings));
+                    return true;
+                }
+
+                try {
+                    const res = await fetch(`${API_URL}/listings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(item)
+                    });
+                    const data = await res.json();
+                    
+                    if (!res.ok) throw new Error(data.message || "Server Error");
+
+                    const newItem = { ...data, id: data._id || data.id };
+                    AppState.listings.unshift(newItem); 
+                    return true;
+                } catch(e) {
+                    console.error(e);
+                    throw new Error("Could not save to database.");
+                }
+            },
+
+            updateListing: async (id, updates) => {
+                const idx = AppState.listings.findIndex(i => i.id == id);
+                if(idx !== -1) {
+                    AppState.listings[idx] = { ...AppState.listings[idx], ...updates };
+                    if(AppState.isOfflineMode) localStorage.setItem('campusBackupListings', JSON.stringify(AppState.listings));
+                }
+            },
+
+            submitContact: async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('contact-submit');
+                btn.disabled = true;
+                btn.innerText = 'Sending...';
+
+                if (AppState.isOfflineMode) {
+                    setTimeout(() => {
+                        UIService.showToast('Message Saved Locally (Offline Mode)');
+                        e.target.reset();
+                        btn.disabled = false;
+                        btn.innerText = 'Send Message';
+                    }, 800);
+                    return;
+                }
+
+                const payload = {
+                    name: document.getElementById('contact-name').value,
+                    email: document.getElementById('contact-email').value,
+                    message: document.getElementById('contact-message').value
+                };
+
+                try {
+                    const res = await fetch(`${API_URL}/contact`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if(!res.ok) throw new Error("Server rejected message");
+                    
+                    UIService.showToast('Message Sent Successfully!');
+                    e.target.reset();
+                } catch(err) {
+                    alert("Failed to send message. Is your server running?");
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = 'Send Message';
+                }
+            },
+
+            getAdminData: async () => {
+                if (AppState.isOfflineMode) {
+                    UIService.showToast("Admin Data not available in offline mode.");
+                    return;
+                }
+                try {
+                    const inqRes = await fetch(`${API_URL}/admin/inquiries`);
+                    const conRes = await fetch(`${API_URL}/admin/contacts`);
+                    
+                    if(inqRes.ok) {
+                        const inqs = await inqRes.json();
+                        const tbody = document.getElementById('admin-inquiries-body');
+                        tbody.innerHTML = inqs.length ? inqs.map(i => `
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                                <td class="p-4 text-sm">${new Date(i.timestamp).toLocaleDateString()}</td>
+                                <td class="p-4 text-sm font-bold text-primary">${i.studentName}</td>
+                                <td class="p-4 text-sm font-bold text-slate-700 dark:text-slate-200">${i.itemName}</td>
+                                <td class="p-4 text-sm">${i.ownerEmail}</td>
+                            </tr>
+                        `).join('') : `<tr><td colspan="4" class="p-4 text-center text-slate-500">No inquiries yet.</td></tr>`;
+                    }
+
+                    if(conRes.ok) {
+                        const cons = await conRes.json();
+                        const tbody = document.getElementById('admin-contacts-body');
+                        tbody.innerHTML = cons.length ? cons.map(c => `
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                                <td class="p-4 text-sm">${new Date(c.timestamp).toLocaleDateString()}</td>
+                                <td class="p-4 text-sm font-bold text-secondary">${c.name}</td>
+                                <td class="p-4 text-sm">${c.email}</td>
+                                <td class="p-4 text-sm italic">"${c.message}"</td>
+                            </tr>
+                        `).join('') : `<tr><td colspan="4" class="p-4 text-center text-slate-500">No messages yet.</td></tr>`;
+                    }
+                    UIService.showToast("Admin Data Refreshed");
+                } catch(e) {
+                    alert("Failed to load admin data.");
+                }
+            }
+        };
+
+        // --- AUTH SERVICE ---
+        const AuthService = {
+            init: () => {
+                AuthService.updateUI();
+            },
+            
+            updateUI: () => {
+                const isUser = !!AppState.user;
+                document.getElementById('nav-guest').classList.toggle('hidden', isUser);
+                document.getElementById('nav-user').classList.toggle('hidden', !isUser);
+
+                if (isUser) {
+                    const nameDisplay = document.getElementById('user-name-display');
+                    const roleDisplay = document.getElementById('user-role-display');
+                    
+                    if(nameDisplay) nameDisplay.innerText = AppState.user.name.split(' ')[0];
+                    if(roleDisplay) roleDisplay.innerText = AppState.user.role;
+
+                    const actionText = document.getElementById('nav-action-text');
+                    if(actionText) {
+                        if(AppState.user.role.includes('owner')) {
+                            actionText.innerText = "Add Listing";
+                        } else {
+                            actionText.innerText = "Sell Item";
+                        }
+                    }
+                }
+            },
+
+            signup: async (e) => {
+                e.preventDefault();
+                const errBox = document.getElementById('signup-error');
+                if(errBox) errBox.classList.add('hidden');
+                
+                const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '';
+                const payload = {
+                    name: getVal('signup-name'),
+                    email: getVal('signup-email').toLowerCase(), // Prevent case-sensitivity bugs
+                    password: getVal('signup-pass'), 
+                    role: getVal('signup-role'),
+                    phone: getVal('signup-phone'),
+                    aadhaar: getVal('signup-aadhaar'),
+                    gender: getVal('signup-gender')
+                };
+
+                if (AppState.isOfflineMode) {
+                    // Mock successful signup
+                    AppState.user = payload;
+                    localStorage.setItem('campusUser', JSON.stringify(payload)); 
+                    AuthService.updateUI();
+                    UIService.showToast("Account Created (Offline Mode)");
+                    return Router.navigate('home');
+                }
+
+                try {
+                    const res = await fetch(`${API_URL}/auth/signup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    
+                    if(!res.ok) throw new Error(data.message || 'Signup failed');
+
+                    AppState.user = data.user;
+                    localStorage.setItem('campusUser', JSON.stringify(data.user)); 
+                    AuthService.updateUI();
+                    UIService.showToast("Account Created!");
+                    Router.navigate('home');
+
+                } catch(err) {
+                    if(errBox) {
+                        errBox.innerText = err.message;
+                        errBox.classList.remove('hidden');
+                    }
+                }
+            },
+
+            login: async (e) => {
+                e.preventDefault();
+                const errBox = document.getElementById('login-error');
+                errBox.classList.add('hidden');
+
+                const payload = {
+                    email: document.getElementById('login-email').value.toLowerCase(), // Prevent case-sensitivity bugs
+                    password: document.getElementById('login-pass').value
+                };
+
+                if (AppState.isOfflineMode) {
+                    // Mock successful login for testing
+                    AppState.user = { name: 'Test User', email: payload.email, role: 'student', phone: '9999999999' };
+                    localStorage.setItem('campusUser', JSON.stringify(AppState.user));
+                    AuthService.updateUI();
+                    UIService.showToast("Welcome Back! (Offline Mode)");
+                    return Router.navigate('home');
+                }
+
+                try {
+                    const res = await fetch(`${API_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const data = await res.json();
+                    if(!res.ok) throw new Error(data.message || 'Login failed');
+
+                    AppState.user = data.user;
+                    localStorage.setItem('campusUser', JSON.stringify(data.user));
+                    if(data.token) localStorage.setItem('campusToken', data.token);
+                    
+                    AuthService.updateUI();
+                    UIService.showToast("Welcome Back!");
+                    Router.navigate('home');
+
+                } catch(err) {
+                    errBox.innerText = err.message;
+                    errBox.classList.remove('hidden');
+                }
+            },
+
+            logout: () => {
+                localStorage.removeItem('campusUser');
+                localStorage.removeItem('campusToken');
+                window.location.reload();
+            },
+            
+            toggleFields: () => { 
+                const roleEl = document.getElementById('signup-role');
+                if(!roleEl) return;
+                
+                const role = roleEl.value;
+                const aadhaarGroup = document.getElementById('field-aadhaar');
+                const genderGroup = document.getElementById('field-gender');
+                const aadhaarInput = document.getElementById('signup-aadhaar');
+                
+                if(role === 'student' || role === 'seller') {
+                    if(aadhaarGroup) aadhaarGroup.classList.add('hidden');
+                    if(genderGroup) genderGroup.classList.remove('hidden');
+                    if(aadhaarInput) aadhaarInput.required = false;
+                } else {
+                    if(aadhaarGroup) aadhaarGroup.classList.remove('hidden');
+                    if(genderGroup) genderGroup.classList.add('hidden');
+                    if(aadhaarInput) aadhaarInput.required = true;
+                }
+            }
+        };
+
+        // --- LOCATION SERVICE ---
+        const LocationService = {
+            handleLocationChange: (e) => {
+                const val = e.target.value;
+                if (val === 'auto') {
+                    AppState.referenceLocation = AppState.userLocation;
+                    UIService.showToast("Showing items near your current location");
+                } else {
+                    const loc = JALGAON_DATA.colleges.find(c => c.name === val) || JALGAON_DATA.areas.find(a => a.name === val);
+                    if (loc) {
+                        AppState.referenceLocation = { lat: loc.lat, lng: loc.lng };
+                        UIService.showToast(`Showing items near ${val}`);
+                    }
+                }
+                Router.navigate('listings', 'nearby');
+            },
+            
+            // Gets Live GPS Location from Browser
+            getUserLocation: async () => {
+                try {
+                    return await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(
+                            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }), 
+                            err => reject(err),
+                            // Force high-accuracy GPS for exact distance calculation
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                    });
+                } catch (e) { return null; } // Return null so we know to use a fallback
+            },
+            
+            // Converts typed address to GPS coordinates via OpenStreetMap
+            geocodeAddress: async (address) => {
+                try {
+                    const query = encodeURIComponent(address + ', Jalgaon, Maharashtra, India');
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+                    const data = await res.json();
+                    
+                    if (data && data.length > 0) {
+                        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                    }
+                    return null;
+                } catch(e) {
+                    console.warn("Geocoding failed", e);
+                    return null;
+                }
+            },
+            
+            // Haversine Formula for Accurate Approximate Distance
+            getDistance: (lat1, lon1, lat2, lon2) => {
+                const R = 6371; // Radius of Earth in KM
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c; // Distance in KM
+            }
+        };
+
+        // --- UI SERVICE ---
+        const UIService = {
+            toggleDarkMode: () => {
+                document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+            },
+            showToast: (msg) => {
+                const toast = document.getElementById('toast');
+                if(toast) {
+                    document.getElementById('toast-text').innerText = msg;
+                    toast.classList.remove('hidden');
+                    setTimeout(() => toast.classList.add('hidden'), 3000);
+                }
+            },
+            switchTab: (tab) => {
+                const container = document.getElementById('dashboard-content');
+                const myTab = document.getElementById('tab-my-listings');
+                const inqTab = document.getElementById('tab-inquiries');
+                const saveTab = document.getElementById('tab-saved');
+                
+                if(myTab) myTab.className = tab === 'my-listings' ? "px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm whitespace-nowrap" : "px-6 py-3 border-b-2 border-transparent text-slate-500 font-medium text-sm hover:text-primary transition whitespace-nowrap";
+                if(inqTab) inqTab.className = tab === 'inquiries' ? "px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm whitespace-nowrap" : "px-6 py-3 border-b-2 border-transparent text-slate-500 font-medium text-sm hover:text-primary transition whitespace-nowrap";
+                if(saveTab) saveTab.className = tab === 'saved' ? "px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm whitespace-nowrap" : "px-6 py-3 border-b-2 border-transparent text-slate-500 font-medium text-sm hover:text-primary transition whitespace-nowrap";
+
+                container.innerHTML = '';
+                if(tab === 'my-listings') {
+                    // Check against lowercase email to prevent case-sensitive mismatches
+                    const myItems = AppState.listings.filter(i => i.ownerEmail.toLowerCase() === AppState.user.email.toLowerCase());
+                    container.innerHTML = myItems.length ? myItems.map(item => RenderService.createCard(item)).join('') : `<div class="col-span-full py-20 text-center text-slate-400 font-bold bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700"><i data-lucide="package-open" class="w-12 h-12 mx-auto mb-4 opacity-50"></i><p>You haven't listed anything yet.</p><button onclick="Router.navigate('sell')" class="mt-4 text-primary font-bold hover:underline">Add Listing</button></div>`;
+                } else if (tab === 'saved') {
+                    const savedItems = AppState.listings.filter(i => i.saved);
+                    container.innerHTML = savedItems.length ? savedItems.map(item => RenderService.createCard(item)).join('') : `<div class="col-span-full py-20 text-center text-slate-400 font-bold bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700"><i data-lucide="bookmark" class="w-12 h-12 mx-auto mb-4 opacity-50"></i><p>No saved items found.</p></div>`;
+                } else {
+                     container.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-bold bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700"><i data-lucide="message-square" class="w-12 h-12 mx-auto mb-4 opacity-50"></i><p>No new inquiries.</p></div>`;
+                }
+                lucide.createIcons();
+            },
+            toggleMobileMenu: () => document.getElementById('mobile-menu').classList.toggle('hidden'),
+            toggleUserMenu: () => {
+                 const menu = document.getElementById('user-dropdown');
+                 menu.classList.toggle('hidden');
+                 menu.classList.toggle('flex');
+            },
+            handleLogoClick: (e) => {
+                AppState.logoClickCount++;
+                clearTimeout(AppState.logoClickTimer);
+                if(AppState.logoClickCount >= 6) {
+                    AppState.logoClickCount = 0;
+                    UIService.openAdminModal();
+                } else {
+                    AppState.logoClickTimer = setTimeout(() => { AppState.logoClickCount = 0; }, 1500);
+                }
+            },
+            openAdminModal: () => {
+                document.getElementById('admin-password').value = '';
+                document.getElementById('admin-modal').classList.remove('hidden');
+            },
+            closeAdminModal: () => {
+                document.getElementById('admin-modal').classList.add('hidden');
+            },
+            verifyAdmin: () => {
+                const pass = document.getElementById('admin-password').value;
+                if(pass === 'UdaanX') {
+                    UIService.closeAdminModal();
+                    Router.navigate('admin');
+                } else {
+                    alert("Incorrect Password!");
+                    UIService.closeAdminModal();
+                }
+            },
+            handleSellCategoryChange: () => {
+                const cat = document.getElementById('sell-cat').value;
+                const occSelect = document.getElementById('sell-occupancy');
+                const acadSelect = document.getElementById('sell-academic-field');
+
+                if (cat === 'pgs') {
+                    occSelect.classList.remove('hidden');
+                    acadSelect.classList.add('hidden');
+                } else if (cat === 'notes' || cat === 'book' || cat === 'books') {
+                    occSelect.classList.add('hidden');
+                    acadSelect.classList.remove('hidden');
+                } else {
+                    occSelect.classList.add('hidden');
+                    acadSelect.classList.add('hidden');
+                }
+            }
+        };
+
+        const SearchService = {
+             handleSearch: (e) => {
+                 if(e.key === 'Enter' || e.type === 'click') {
+                     const term = e.target.value.toLowerCase();
+                     Router.navigate('listings', 'all');
+                     setTimeout(() => {
+                         const results = AppState.listings.filter(item => item.name.toLowerCase().includes(term) || item.type.includes(term));
+                         const grid = document.getElementById('listings-grid');
+                         grid.innerHTML = results.length ? results.map(item => RenderService.createCard(item)).join('') : `<div class="col-span-full text-center py-10 text-slate-400 font-bold">No matching results.</div>`;
+                         lucide.createIcons();
+                     }, 100);
+                 }
+             }
+        };
+
+        // --- RENDER SERVICE ---
+        const RenderService = {
+            refresh: () => {
+                const activeView = document.querySelector('.page-view:not(.hidden)');
+                if(activeView && activeView.id === 'view-listings') {
+                    // re-trigger the active filter button
+                    const activeBtn = document.querySelector('.filter-btn.bg-primary') || document.querySelector('.filter-btn.bg-green-500');
+                    if(activeBtn) {
+                        const type = activeBtn.id.replace('btn-filter-', '');
+                        RenderService.filterListings(type);
+                    } else {
+                        RenderService.listings();
+                    }
+                }
+                if(activeView && activeView.id === 'view-dashboard') {
+                    const activeTab = document.getElementById('tab-my-listings').classList.contains('border-primary') ? 'my-listings' : 'inquiries';
+                    UIService.switchTab(activeTab);
+                }
+            },
+            createCard: (item) => {
+                return `
+                <div class="listing-card bg-white dark:bg-darkCard rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm group cursor-pointer" onclick="Router.navigate('details', '${item.id}')">
+                    <div class="relative h-64 overflow-hidden">
+                        <img src="${item.img || 'https://placehold.co/600x400/EEE/333'}" class="w-full h-full object-cover transition duration-700 group-hover:scale-110" onerror="this.src='https://placehold.co/600x400/EEE/333?text=Image'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <span class="absolute top-4 left-4 bg-white/90 backdrop-blur text-slate-800 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-sm">${item.type}</span>
+                        <button onclick="event.stopPropagation(); DataService.toggleSave('${item.id}')" class="absolute top-3 right-3 bg-white/90 p-2 rounded-full hover:text-red-500 ${item.saved ? 'text-red-500 fill-red-500' : ''}"><i data-lucide="heart" class="w-4 h-4"></i></button>
+                        ${(item.distance !== undefined && item.distance < 99999) ? `<span class="absolute bottom-3 left-3 bg-white/90 text-green-700 text-[10px] font-bold px-2 py-1 rounded shadow flex items-center"><i data-lucide="map-pin" class="w-3 h-3 mr-1"></i> ${item.distance.toFixed(1)} km</span>` : ''}
+                    </div>
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-bold text-lg text-slate-900 dark:text-white leading-snug mb-1 group-hover:text-primary transition-colors">${item.name}</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center font-bold mb-1.5"><i data-lucide="map-pin" class="w-3 h-3 mr-1.5 text-slate-400"></i> ${item.location}</p>
+                                
+                                ${item.nearestCollege ? `<p class="text-[10px] font-bold text-teal-600 dark:text-teal-400 mt-1 flex items-center"><i data-lucide="school" class="w-3 h-3 mr-1"></i> Near: ${item.nearestCollege}</p>` : ''}
+                                ${item.occupancy ? `<p class="text-[10px] font-bold text-indigo-500 mt-1 flex items-center"><i data-lucide="users" class="w-3 h-3 mr-1"></i> ${item.occupancy}</p>` : ''}
+                                ${item.academicField ? `<p class="text-[10px] font-bold text-purple-500 mt-1 flex items-center"><i data-lucide="graduation-cap" class="w-3 h-3 mr-1"></i> ${item.academicField}</p>` : ''}
+                            </div>
+                            <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-700 px-2 py-1 rounded-lg"><i data-lucide="star" class="w-3 h-3 text-secondary fill-secondary"></i><span class="text-xs font-bold text-slate-700 dark:text-white">${item.rating || '4.5'}</span></div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700 flex items-center justify-between">
+                            <span class="text-xl font-extrabold text-primary dark:text-white">₹${item.price}</span>
+                            <button class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors">View Details</button>
+                        </div>
+                    </div>
+                </div>`;
+            },
+            listings: (type = 'all') => {
+                const grid = document.getElementById('listings-grid');
+                const title = document.getElementById('listing-header');
+                
+                let data = AppState.listings;
+                if(type !== 'all' && type !== 'nearby') {
+                    data = data.filter(i => {
+                        if (type === 'books') return i.type === 'book' || i.type === 'books';
+                        if (type === 'gadget') return i.type === 'gadget' || i.type === 'gadgets';
+                        return i.type === type;
+                    });
+                }
+                
+                const sortLocation = AppState.referenceLocation || AppState.userLocation;
+                if (sortLocation) {
+                    data = data.map(item => {
+                        let itemCoords = item.coords || null;
+                        
+                        // FIX: If the item is OLD and has no coordinates, give it a smart fallback
+                        // so it doesn't break the layout or display 999999 km!
+                        if (!itemCoords || !itemCoords.lat) {
+                            const fallbackLoc = JALGAON_DATA.colleges.find(c => c.name === item.nearestCollege) || 
+                                                JALGAON_DATA.areas.find(a => a.name === "Jalgaon");
+                            if (fallbackLoc) itemCoords = { lat: fallbackLoc.lat, lng: fallbackLoc.lng };
+                        }
+
+                        if (itemCoords && itemCoords.lat && itemCoords.lng) {
+                            item.distance = LocationService.getDistance(sortLocation.lat, sortLocation.lng, itemCoords.lat, itemCoords.lng);
+                        } else { 
+                            item.distance = 999999; 
+                        }
+                        return item;
+                    }).sort((a,b) => a.distance - b.distance);
+                    
+                    if (type === 'nearby') data = data.filter(d => d.distance <= 10.0); // Show within 10km radius
+                }
+                
+                if (type === 'pgs') title.innerText = 'PGs & Hostels';
+                else if (type === 'notes') title.innerText = 'Notes & Books';
+                else if (type === 'mess') title.innerText = 'Mess Services';
+                else if (type === 'books') title.innerText = 'Used Books';
+                else if (type === 'gadget') title.innerText = 'Gadgets & Tech';
+                else if (type === 'nearby') title.innerText = 'Nearby Items';
+                else title.innerText = 'All Listings';
+                
+                grid.innerHTML = data.length ? data.map(item => RenderService.createCard(item)).join('') : `<div class="col-span-full text-center py-20 text-slate-400 font-bold">No listings found matching your criteria.</div>`;
+                lucide.createIcons();
+            },
+            filterListings: (type) => {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.className = "filter-btn px-4 py-2 rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 whitespace-nowrap font-bold";
+                    if(btn.id === 'btn-filter-nearby') {
+                        btn.className = "filter-btn px-4 py-2 rounded-full border border-green-500 text-green-600 text-sm font-bold whitespace-nowrap hover:bg-green-50 dark:hover:bg-green-900/20 transition-all flex items-center gap-1.5";
+                    }
+                });
+
+                const activeBtn = document.getElementById(`btn-filter-${type}`);
+                if (activeBtn) {
+                    if (type === 'nearby') {
+                         activeBtn.className = "filter-btn px-4 py-2 rounded-full bg-green-500 text-white text-sm font-bold whitespace-nowrap shadow-md transition-all flex items-center gap-1.5";
+                    } else {
+                         activeBtn.className = "filter-btn px-4 py-2 rounded-full bg-primary text-white text-sm font-bold whitespace-nowrap shadow-md transition-all flex items-center gap-1.5";
+                    }
+                }
+                
+                RenderService.listings(type);
+            },
+            adminDashboard: () => {
+                BackendService.getAdminData();
+            }
+        };
+
+        // --- DATA FLOW ---
+        const DataService = {
+            // Smart Image Compression Function
+            compressImage: (file) => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_WIDTH = 800;
+                            const MAX_HEIGHT = 800;
+                            let width = img.width;
+                            let height = img.height;
+
+                            if (width > height && width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            } else if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            // Compress heavily down to lightweight JPEG
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
+                            resolve(dataUrl);
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            },
+
+            previewImage: async (e) => {
+                const files = e.target.files;
+                if(!files.length) return;
+                
+                const role = AppState.user.role;
+                const isOwner = role.includes('owner');
+                const limit = isOwner ? 3 : 1;
+                
+                if((AppState.tempImages.length + files.length) > limit) {
+                    UIService.showToast(`You can only upload up to ${limit} photo(s).`);
+                    e.target.value = ''; 
+                    return;
+                }
+                
+                const container = document.getElementById('sell-img-previews');
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                container.classList.remove('hidden');
+                
+                for (let file of files) {
+                    // Compress image before saving
+                    const compressedDataUrl = await DataService.compressImage(file);
+                    AppState.tempImages.push(compressedDataUrl);
+                    
+                    const img = document.createElement('img');
+                    img.src = compressedDataUrl;
+                    img.className = "h-20 w-20 object-cover rounded-lg border border-slate-200 shadow-sm";
+                    container.appendChild(img);
+                }
+                
+                e.target.value = ''; 
+            },
+
+            handleSell: async (e) => {
+                e.preventDefault();
+                if(!AppState.user) {
+                    UIService.showToast("Please login to list items");
+                    return Router.navigate('login');
+                }
+                
+                const btn = document.getElementById('sell-submit-btn');
+                btn.disabled = true;
+                btn.innerText = "Scanning Address...";
+
+                const cat = document.getElementById('sell-cat').value;
+                const occupancy = document.getElementById('sell-occupancy').value;
+                const academicField = document.getElementById('sell-academic-field').value;
+                const nearestCollege = document.getElementById('sell-nearest-college').value;
+                const addressText = document.getElementById('sell-address').value;
+
+                // 1. Instantly scan the typed address using OpenStreetMap Geocoding
+                let itemCoords = await LocationService.geocodeAddress(addressText);
+                
+                // 2. Fallback to GPS or default if scanning fails
+                if (!itemCoords) {
+                    itemCoords = await LocationService.getUserLocation();
+                    if (!itemCoords) itemCoords = { lat: 21.0077, lng: 75.5626 };
+                }
+
+                const newItem = {
+                    name: document.getElementById('sell-title').value, 
+                    price: parseInt(document.getElementById('sell-price').value), 
+                    type: cat,
+                    img: AppState.tempImages && AppState.tempImages.length > 0 ? AppState.tempImages[0] : 'https://placehold.co/600x400/EEE/333',
+                    images: AppState.tempImages || [],
+                    ownerEmail: AppState.user.email.toLowerCase(),
+                    ownerPhone: AppState.user.phone,
+                    location: 'User Listed',
+                    address: addressText,
+                    rating: 5.0,
+                    owner: AppState.user.name,
+                    coords: itemCoords,
+                    occupancy: cat === 'pgs' ? occupancy : '',
+                    academicField: (cat === 'notes' || cat === 'book' || cat === 'books') ? academicField : '',
+                    nearestCollege: nearestCollege
+                };
+                
+                try {
+                    btn.innerText = "Posting...";
+                    await BackendService.addListing(newItem);
+                    UIService.showToast('Listing Posted Successfully!');
+                    e.target.reset();
+                    
+                    AppState.tempImages = [];
+                    const imgContainer = document.getElementById('sell-img-previews');
+                    imgContainer.innerHTML = '';
+                    imgContainer.classList.add('hidden');
+                    document.getElementById('upload-placeholder').classList.remove('hidden');
+                    
+                    UIService.handleSellCategoryChange(); 
+                    Router.navigate('dashboard');
+                } catch(err) {
+                    alert("Failed to post. Ensure server is running.");
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = "Post Listing";
+                }
+            },
+            
+            toggleSave: async (id) => {
+                if(!AppState.user) {
+                    UIService.showToast("Login to save items");
+                    return Router.navigate('login');
+                }
+                const item = AppState.listings.find(i => i.id == id);
+                if(item) {
+                    item.saved = !item.saved;
+                    await BackendService.updateListing(id, { saved: item.saved });
+                    RenderService.refresh();
+                }
+            },
+            
+            openWhatsApp: async () => {
+                if(!AppState.currentDetailItem) return;
+                const item = AppState.currentDetailItem;
+                
+                // Secretly log inquiry to the backend (Skip in offline mode)
+                if (AppState.user && !AppState.isOfflineMode) {
+                    try {
+                        await fetch(`${API_URL}/inquiries`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                listingId: item.id,
+                                itemName: item.name,
+                                ownerEmail: item.ownerEmail,
+                                studentName: AppState.user.name
+                            })
+                        });
+                    } catch(e) { console.log("Failed to log inquiry"); }
+                }
+
+                // Open WhatsApp
+                const phone = item.ownerPhone || '918767319031';
+                let cleanPhone = phone.replace(/\D/g, '');
+                if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+                
+                let action = "inquire about";
+                let typeLabel = item.type;
+                switch(item.type) {
+                    case 'pgs': typeLabel = 'PG/Hostel'; action = 'rent/visit'; break;
+                    case 'mess': typeLabel = 'Mess Service'; action = 'subscribe/try'; break;
+                    case 'notes': case 'book': case 'gadget': typeLabel = item.type.charAt(0).toUpperCase() + item.type.slice(1); action = 'buy'; break;
+                    case 'library': typeLabel = 'Library'; action = 'join'; break;
+                    case 'class': typeLabel = 'Coaching Class'; action = 'join'; break;
+                    default: typeLabel = 'Listing'; action = 'know more about';
+                }
+                const text = `Hello, I saw your ${typeLabel} "${item.name}" on CampusBandhu and I am interested to ${action} it.`;
+                const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+                window.open(url, '_blank');
+            }
+        };
+
+        // --- ROUTER ---
+        const Router = {
+            navigate: async (view, param) => {
+                if ((view === 'sell' || view === 'dashboard') && !AppState.user) {
+                    UIService.showToast("Please login to access this feature.");
+                    view = 'login';
+                }
+                document.querySelectorAll('.page-view').forEach(el => el.classList.add('hidden'));
+                const target = document.getElementById(`view-${view}`);
+                if(target) {
+                    target.classList.remove('hidden');
+                    window.scrollTo(0,0);
+                }
+                
+                if(view === 'listings') {
+                    // Ask for location securely so distance calculations work
+                    if (!AppState.userLocation) {
+                        UIService.showToast("Finding nearest items to you...");
+                        const loc = await LocationService.getUserLocation();
+                        if (loc) AppState.userLocation = loc;
+                        else AppState.userLocation = { lat: 21.0077, lng: 75.5626 };
+                    }
+                    RenderService.filterListings(param || 'all'); 
+                }
+                if(view === 'dashboard') UIService.switchTab('my-listings');
+                if(view === 'admin') RenderService.adminDashboard();
+                
+                if(view === 'details') {
+                    const item = AppState.listings.find(i => i.id == param);
+                    if(item) {
+                        AppState.currentDetailItem = item;
+                        document.getElementById('detail-img').src = item.img;
+                        document.getElementById('detail-title').innerText = item.name;
+                        document.getElementById('detail-price').innerText = `₹${item.price}`;
+                        document.getElementById('detail-loc').innerText = item.location;
+                        document.getElementById('detail-address').innerText = item.address || item.location || 'Address not provided';
+                        document.getElementById('detail-owner').innerText = item.owner || 'Campus User';
+                        
+                        // Populate Badges
+                        let badgesHtml = '';
+                        if(item.type) badgesHtml += `<span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300 uppercase">${item.type}</span>`;
+                        if(item.nearestCollege) badgesHtml += `<span class="bg-teal-100 text-teal-800 text-xs font-bold px-2.5 py-1 rounded-full dark:bg-teal-900 dark:text-teal-300"><i data-lucide="school" class="w-3 h-3 inline mr-1"></i> Near: ${item.nearestCollege}</span>`;
+                        if(item.occupancy) badgesHtml += `<span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded-full dark:bg-indigo-900 dark:text-indigo-300"><i data-lucide="users" class="w-3 h-3 inline mr-1"></i> ${item.occupancy}</span>`;
+                        if(item.academicField) badgesHtml += `<span class="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-1 rounded-full dark:bg-purple-900 dark:text-purple-300"><i data-lucide="graduation-cap" class="w-3 h-3 inline mr-1"></i> ${item.academicField}</span>`;
+                        
+                        const badgesContainer = document.getElementById('detail-badges');
+                        if (badgesContainer) {
+                            badgesContainer.innerHTML = badgesHtml;
+                            lucide.createIcons(); 
+                        }
+
+                        const gallery = document.getElementById('detail-gallery');
+                        if(item.images && item.images.length > 1) {
+                            gallery.innerHTML = item.images.map(src => `<img src="${src}" class="w-20 h-20 object-cover rounded-xl cursor-pointer border-2 border-transparent hover:border-primary transition" onclick="document.getElementById('detail-img').src='${src}'">`).join('');
+                            gallery.classList.remove('hidden');
+                        } else {
+                            gallery.innerHTML = '';
+                            gallery.classList.add('hidden');
+                        }
+                        document.getElementById('contact-box').innerHTML = `
+                            <button onclick="DataService.openWhatsApp()" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold text-lg shadow-lg transition flex items-center justify-center gap-2">
+                                <i data-lucide="message-circle" class="w-5 h-5"></i> Chat on WhatsApp
+                            </button>`;
+                    }
+                }
+                if(view === 'sell' && AppState.user) {
+                    const select = document.getElementById('sell-cat');
+                    select.innerHTML = '';
+                    const role = AppState.user.role;
+                    const options = ROLE_OPTIONS[role] || ROLE_OPTIONS['student']; 
+                    options.forEach(opt => {
+                        const el = document.createElement('option');
+                        el.value = opt.val;
+                        el.innerText = opt.label;
+                        select.appendChild(el);
+                    });
+                    
+                    UIService.handleSellCategoryChange();
+
+                    AppState.tempImages = [];
+                    const imgContainer = document.getElementById('sell-img-previews');
+                    if(imgContainer) {
+                        imgContainer.innerHTML = '';
+                        imgContainer.classList.add('hidden');
+                    }
+                    const placeholder = document.getElementById('upload-placeholder');
+                    if(placeholder) placeholder.classList.remove('hidden');
+
+                    const limitText = document.getElementById('upload-limit-text');
+                    if(!role.includes('owner')) limitText.innerText = "(Max 1 photo for Students)";
+                    else limitText.innerText = "(Max 3 photos for Owners)";
+                }
+                if(view === 'dashboard' && AppState.user) {
+                    const tabContainer = document.querySelector('#view-dashboard .flex.gap-4');
+                    let tabsHtml = `<button onclick="UIService.switchTab('my-listings')" id="tab-my-listings" class="px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm whitespace-nowrap">Active Listings</button>`;
+                    if(AppState.user.role === 'student' || AppState.user.role === 'seller') {
+                         tabsHtml += `<button onclick="UIService.switchTab('saved')" id="tab-saved" class="px-6 py-3 border-b-2 border-transparent text-slate-500 font-bold text-sm hover:text-primary transition whitespace-nowrap">Saved Items</button>`;
+                    } else {
+                         tabsHtml += `<button onclick="UIService.switchTab('inquiries')" id="tab-inquiries" class="px-6 py-3 border-b-2 border-transparent text-slate-500 font-bold text-sm hover:text-primary transition whitespace-nowrap">Inquiries</button>`;
+                    }
+                    tabsHtml += `<button id="dash-add-btn" onclick="Router.navigate('sell')" class="ml-auto bg-secondary text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm md:hidden">Add New</button>`;
+                    tabContainer.innerHTML = tabsHtml;
+                }
+            }
+        };
+
+        // --- INIT ---
+        window.onload = async () => {
+            lucide.createIcons();
+            
+            if(localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+            
+            // Build Home Grid
+            const grid = document.getElementById('features-grid');
+            if(grid) {
+                grid.innerHTML = CATEGORIES.map(cat => `
+                    <div onclick="Router.navigate('listings', '${cat.id}')" class="bg-white dark:bg-darkCard p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center hover:scale-105 transition-transform cursor-pointer">
+                        <div class="w-12 h-12 ${cat.color} rounded-full flex items-center justify-center mx-auto mb-3"><i data-lucide="${cat.icon}" class="w-6 h-6"></i></div>
+                        <h3 class="font-bold text-sm text-slate-700 dark:text-slate-200">${cat.title}</h3>
+                    </div>`).join('');
+                lucide.createIcons();
+            }
+
+            AuthService.init();
+            await BackendService.init();
+        };
+    </script>
+</body>
+</html>

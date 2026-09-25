@@ -1,251 +1,270 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'campusbandhu_super_secret_key_2026';
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/campusbandhu';
+const PORT = process.env.PORT || 5001; 
+const JWT_SECRET = process.env.JWT_SECRET || 'campus-bandhu-secret-key-999';
 
-// Middleware to enable CORS and parse JSON body requests (large payloads allowed for base64 images)
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// CORS configuration to allow cross-origin requests from GitHub Pages or Localhost
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static(__dirname));
 
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('✅ Connected to MongoDB Database successfully'))
-    .catch(err => console.error('❌ MongoDB Connection Error:', err));
+// Hardcoded Atlas Cloud URI fallback to guarantee cloud connection on Render
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://campusbandhu06:campus06@cheatan.4ilrpq2.mongodb.net/?retryWrites=true&w=majority&appName=Cheatan";
 
-// 1. User Schema
-const userSchema = new mongoose.Schema({
+mongoose.connect(MONGO_URI, {
+    serverSelectionTimeoutMS: 5000 // Timeout after 5s instead of hanging
+})
+.then(() => console.log('✅ Connected to CLOUD Database (Atlas)'))
+.catch(err => {
+    console.error('❌ Cloud Connection Error:', err.message);
+});
+
+// User Schema for Authentication & Profiles
+const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, required: true },
     phone: { type: String, required: true },
-    gender: { type: String, default: 'Other' },
-    aadhaar: { type: String, default: '' },
+    aadhaar: String,
+    gender: String,
     createdAt: { type: Date, default: Date.now }
 });
 
-const User = mongoose.model('User', userSchema);
-
-// 2. Listing Schema
-const listingSchema = new mongoose.Schema({
+// Listing Schema for Hostels, PGs, and Rooms
+const ListingSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    type: { type: String, required: true }, // pgs, mess, notes, books, gadget, library, class
+    type: { type: String, required: true },
     price: { type: Number, required: true },
-    location: { type: String, default: 'Jalgaon' },
-    address: { type: String, required: true },
-    img: { type: String },
-    images: [{ type: String }],
-    owner: { type: String },
+    location: { type: String, required: true },
+    address: String,
+    features: String,
+    img: String, 
+    images: [String], 
     ownerEmail: { type: String, required: true },
-    ownerPhone: { type: String },
-    rating: { type: Number, default: 4.5 },
-    saved: { type: Boolean, default: false },
-    coords: {
-        lat: { type: Number, default: 21.0077 },
-        lng: { type: Number, default: 75.5626 }
-    },
+    ownerPhone: { type: String, required: true },
+    owner: String, 
+    rating: { type: Number, default: 0 },
+    verified: { type: Boolean, default: false },
+    occupancy: String,
+    academicField: String,
+    nearestCollege: String,
+    coords: { lat: Number, lng: Number },
     createdAt: { type: Date, default: Date.now }
 });
 
-const Listing = mongoose.model('Listing', listingSchema);
+// Inquiry Schema for Student Questions
+const InquirySchema = new mongoose.Schema({
+    listingId: String,
+    itemName: String,
+    ownerEmail: String,
+    studentName: String,
+    timestamp: { type: Date, default: Date.now }
+});
 
-// --- AUTH ROUTES ---
+// Contact Schema for General Contact Messages
+const ContactSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    message: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now }
+});
 
-// POST: Sign Up new user
-app.post('/api/auth/signup', async (req, res) => {
+// Item Schema for Shared Notes, Books, Buy/Sell
+const ItemSchema = new mongoose.Schema({
+    type: { type: String, default: 'notes' },
+    title: { type: String, required: true },
+    branch: { type: String, default: 'GENERAL' },
+    link: { type: String, default: '' },
+    price: { type: String, default: '' },
+    desc: { type: String, default: '' },
+    author: { type: String, default: 'Student' },
+    date: { type: Date, default: Date.now }
+});
+
+// Initialize Mongoose Models
+const User = mongoose.model('User', UserSchema);
+const Listing = mongoose.model('Listing', ListingSchema);
+const Inquiry = mongoose.model('Inquiry', InquirySchema);
+const Contact = mongoose.model('Contact', ContactSchema);
+const Item = mongoose.model('Item', ItemSchema);
+
+// 1. ITEMS API (For live notes sync on frontend)
+app.get('/api/items', async (req, res) => {
     try {
-        const { name, email, password, role, phone, gender, aadhaar } = req.body;
-
-        if (!name || !email || !password || !role || !phone) {
-            return res.status(400).json({ message: 'Please fill in all required fields.' });
-        }
-
-        // Check if user already exists
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser) {
-            return res.status(400).json({ message: 'User with this email already exists.' });
-        }
-
-        // Hash the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Save User
-        const newUser = new User({
-            name,
-            email: email.toLowerCase(),
-            password: hashedPassword,
-            role,
-            phone,
-            gender,
-            aadhaar
-        });
-
-        await newUser.save();
-
-        res.status(201).json({ message: 'User registered successfully!' });
-    } catch (error) {
-        console.error('Signup error:', error);
-        res.status(500).json({ message: 'Server error during signup.' });
+        const items = await Item.find().sort({ date: -1 });
+        res.json({ success: true, count: items.length, items });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// POST: Login user
+app.post('/api/items', async (req, res) => {
+    try {
+        const newItem = new Item({
+            type: req.body.type || 'notes',
+            title: req.body.title || req.body.name,
+            branch: req.body.branch || 'GENERAL',
+            link: req.body.link || '',
+            price: req.body.price || '',
+            desc: req.body.desc || '',
+            author: req.body.author || 'Anonymous Student',
+            date: new Date()
+        });
+        const saved = await newItem.save();
+        res.status(201).json({ success: true, item: saved });
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message });
+    }
+});
+
+// 2. AUTHENTICATION
+app.post('/api/auth/signup', async (req, res) => {
+    try {
+        const { name, email, password, role, phone, aadhaar, gender } = req.body;
+        
+        const existingUser = await User.findOne({ email });
+        if (existingUser) return res.status(400).json({ message: 'User already exists' });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newUser = new User({
+            name, email, password: hashedPassword, role, phone, aadhaar, gender
+        });
+        await newUser.save();
+
+        res.status(201).json({ 
+            message: 'User created',
+            user: { name, email, role, phone } 
+        });
+    } catch (err) {
+        res.status(500).json({ message: 'Server Error: ' + err.message });
+    }
+});
+
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        const user = await User.findOne({ email });
+        
+        if (!user) return res.status(400).json({ message: 'User not found' });
 
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Please enter email and password.' });
-        }
-
-        // Find user by email
-        const user = await User.findOne({ email: email.toLowerCase() });
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid credentials.' });
-        }
-
-        // Verify password
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials.' });
-        }
+        if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
-        // Generate JWT Token
-        const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.role },
-            JWT_SECRET,
-            { expiresIn: '7d' }
-        );
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
 
         res.json({
             token,
             user: {
-                id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
                 phone: user.phone
             }
         });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ message: 'Server error during login.' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 
-// --- LISTINGS ROUTES ---
-
-// GET: Fetch all listings
+// 3. LISTINGS
 app.get('/api/listings', async (req, res) => {
     try {
         const listings = await Listing.find().sort({ createdAt: -1 });
-        // Format _id to id for frontend compatibility
-        const formatted = listings.map(doc => ({
-            id: doc._id,
-            name: doc.name,
-            type: doc.type,
-            price: doc.price,
-            location: doc.location,
-            address: doc.address,
-            img: doc.img,
-            images: doc.images,
-            owner: doc.owner,
-            ownerEmail: doc.ownerEmail,
-            ownerPhone: doc.ownerPhone,
-            rating: doc.rating,
-            saved: doc.saved,
-            coords: doc.coords
-        }));
+        const formatted = listings.map(l => ({ ...l._doc, id: l._id }));
         res.json(formatted);
-    } catch (error) {
-        console.error('Get listings error:', error);
-        res.status(500).json({ message: 'Failed to fetch listings.' });
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching listings' });
     }
 });
 
-// POST: Add new listing
 app.post('/api/listings', async (req, res) => {
     try {
-        const { name, type, price, location, address, img, images, owner, ownerEmail, ownerPhone, coords } = req.body;
-
-        const newListing = new Listing({
-            name,
-            type,
-            price,
-            location: location || 'Jalgaon Region',
-            address,
-            img,
-            images: images || [img],
-            owner,
-            ownerEmail,
-            ownerPhone,
-            coords
-        });
-
-        const savedListing = await newListing.save();
-
-        res.status(201).json({
-            id: savedListing._id,
-            name: savedListing.name,
-            type: savedListing.type,
-            price: savedListing.price,
-            location: savedListing.location,
-            address: savedListing.address,
-            img: savedListing.img,
-            images: savedListing.images,
-            owner: savedListing.owner,
-            ownerEmail: savedListing.ownerEmail,
-            ownerPhone: savedListing.ownerPhone,
-            rating: savedListing.rating,
-            saved: savedListing.saved,
-            coords: savedListing.coords
-        });
-    } catch (error) {
-        console.error('Add listing error:', error);
-        res.status(500).json({ message: 'Failed to save listing.' });
+        const newListing = new Listing(req.body);
+        const saved = await newListing.save();
+        res.status(201).json({ ...saved._doc, id: saved._id });
+    } catch (err) {
+        res.status(500).json({ message: 'Error creating listing' });
     }
 });
 
-// PUT: Update listing (e.g. toggle saved or edit)
-app.put('/api/listings/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const updates = req.body;
-
-        const updated = await Listing.findByIdAndUpdate(id, updates, { new: true });
-        if (!updated) {
-            return res.status(404).json({ message: 'Listing not found.' });
-        }
-
-        res.json({
-            id: updated._id,
-            ...updated._doc
-        });
-    } catch (error) {
-        console.error('Update listing error:', error);
-        res.status(500).json({ message: 'Failed to update listing.' });
-    }
-});
-
-// DELETE: Delete listing
 app.delete('/api/listings/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        await Listing.findByIdAndDelete(id);
-        res.json({ message: 'Listing deleted successfully.' });
-    } catch (error) {
-        console.error('Delete listing error:', error);
-        res.status(500).json({ message: 'Failed to delete listing.' });
+        await Listing.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ message: 'Delete failed' });
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 CampusBandhu Backend Server is running on http://localhost:${PORT}`);
+// 4. INQUIRIES
+app.post('/api/inquiries', async (req, res) => {
+    try {
+        const newInquiry = new Inquiry(req.body);
+        await newInquiry.save();
+        res.status(201).json(newInquiry);
+    } catch (err) {
+        res.status(500).json({ message: 'Error saving inquiry' });
+    }
+});
+
+app.get('/api/inquiries/:email', async (req, res) => {
+    try {
+        const inquiries = await Inquiry.find({ ownerEmail: req.params.email }).sort({ timestamp: -1 });
+        res.json(inquiries);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching inquiries' });
+    }
+});
+
+// 5. ADMIN & CONTACT
+app.get('/api/admin/inquiries', async (req, res) => {
+    try {
+        const inquiries = await Inquiry.find().sort({ timestamp: -1 });
+        res.json(inquiries);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching all inquiries' });
+    }
+});
+
+app.post('/api/contact', async (req, res) => {
+    try {
+        const newContact = new Contact(req.body);
+        await newContact.save();
+        res.status(201).json(newContact);
+    } catch (err) {
+        res.status(500).json({ message: 'Error saving contact message' });
+    }
+});
+
+app.get('/api/admin/contacts', async (req, res) => {
+    try {
+        const contacts = await Contact.find().sort({ timestamp: -1 });
+        res.json(contacts);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching contacts' });
+    }
+});
+
+// Wildcard fallback for SPA routing
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Start Server
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
 });

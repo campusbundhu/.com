@@ -19,7 +19,7 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
-// Hardcoded Atlas Cloud URI fallback to guarantee cloud connection on Render
+// MongoDB connection using environment variable or cloud Atlas URI fallback
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://campusbandhu06:campus06@cheatan.4ilrpq2.mongodb.net/?retryWrites=true&w=majority&appName=Cheatan";
 
 mongoose.connect(MONGO_URI, {
